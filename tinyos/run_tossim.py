@@ -29,7 +29,7 @@ PATH_LOSS_EXP = 2.0
 REF_DIST_M = 1.0
 REF_LOSS_DB = 30.0  # perte de reference a 1 m (CC2420 @2.4GHz)
 # Calibre pour que le lien le plus defavorable (~320 m) reste au-dessus du
-# bruit de meyer-heavy.txt (~-98 dBm) ; voir docker/README.md pour le detail.
+# bruit de meyer-heavy.txt (~-98 dBm) ; voir README.md (Journal technique) pour le detail.
 
 
 def parse_topology(path):

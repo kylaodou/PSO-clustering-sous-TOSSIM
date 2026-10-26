@@ -15,7 +15,7 @@
 COMPONENT=PSOClusteringAppC
 LIBS += -lm
 
-# NOTE (correction toolchain, cf. docker/README.md) : le Makefile TinyOS 2.0
+# NOTE (correction toolchain, cf. README.md / Journal technique) : le Makefile TinyOS 2.0
 # historique utilisait `include $(MAKERULES)` (variable TOSROOT/TOSDIR/
 # MAKERULES). Le systeme de build de tinyos-main (>= 2.1) a deprecie ce
 # mecanisme au profit de TINYOS_ROOT_DIR + Makefile.include (cf.
