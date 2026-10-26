@@ -1,0 +1,101 @@
+=====================================================================
+ PSO-Clustering -- execution reelle TOSSIM (TinyOS 2.1.2 / nesC)
+ Genere le 2026-09-29, dans le conteneur Docker ucmercedandeslab/tinyos:tossim
+ (Debian 8 "jessie", nesc 1.3.6-tinyprod, gcc 4.9.2, python2.7.9)
+=====================================================================
+
+--- Commande de compilation ---
+$ make micaz sim
+[...]
+[INFO] *** Successfully built micaz TOSSIM library.
+(-> produit TOSSIM.py + _TOSSIMmodule.so dans le repertoire de l'app ;
+    voir docker/README.md pour la remarque sur la nomenclature exacte des
+    fichiers generes par ce make system.)
+
+--- Commande d'execution (Python 2.7.9, dans le conteneur) ---
+$ TOSROOT=/opt/tinyos-main python2 run_tossim.py --rounds 150 --log tossim_run.log
+
+--- Sortie standard de run_tossim.py (execution retenue comme reference) ---
+Topologie chargee : 100 capteurs + 1 BS (id 0) en (100.0, 250.0)
+Trace de bruit : /opt/tinyos-main/tos/lib/tossim/noise/meyer-heavy.txt
+  ... 200000 evenements traites (t=155670203624)
+  ... 400000 evenements traites (t=309570338600)
+  ... 600000 evenements traites (t=470468764000)
+  ... 800000 evenements traites (t=611709168549)
+  ... 1000000 evenements traites (t=753350862772)
+  ... 1200000 evenements traites (t=895507851800)
+  ... 1400000 evenements traites (t=1038718907953)
+  ... 1600000 evenements traites (t=1196603465473)
+  ... 1800000 evenements traites (t=1347320709722)
+  ... 2000000 evenements traites (t=1479586275306)
+  ... 2200000 evenements traites (t=1622070350700)
+  ... 2400000 evenements traites (t=1756362242830)
+  ... 2600000 evenements traites (t=1898889103199)
+  ... 2800000 evenements traites (t=2052753984250)
+  ... 3000000 evenements traites (t=2184277356750)
+  ... 3200000 evenements traites (t=2316309674731)
+  ... 3400000 evenements traites (t=2444811015496)
+  ... 3600000 evenements traites (t=2578647965656)
+  ... 3800000 evenements traites (t=2732867171246)
+  ... 4000000 evenements traites (t=2877892012269)
+  ... 4200000 evenements traites (t=3021800466430)
+  ... 4400000 evenements traites (t=3164091883975)
+  ... 4600000 evenements traites (t=3307187549000)
+  ... 4800000 evenements traites (t=3459740995379)
+  ... 5000000 evenements traites (t=3613896575375)
+Simulation terminee : 5042338 evenements TOSSIM, log ecrit dans tossim_run_check.log
+
+(Fichier renomme tossim_run.log sur l'hote apres copie hors du conteneur ;
+ taille : 37352 lignes, ~1.7 Mo -- log brut TOSSIM/dbg non trivial.)
+
+--- Commande d'analyse (Python 3.13, sur l'hote Windows, sans TOSSIM) ---
+$ python3 analyze_tossim_log.py tossim_run.log
+
+--- Sortie standard de analyze_tossim_log.py ---
+=== Resultats reels TOSSIM (PSOClustering, N=100) ===
+Rounds observes         : 156 (0..155)
+Paquets de donnees emis : 11651
+Paquets recus par la BS : 6663
+Taux de livraison global: 57.19%
+Aucun noeud mort observe sur la fenetre simulee.
+CSV ecrit : results/data/tossim_real_run.csv
+
+=====================================================================
+ Lecture des resultats / points cles pour le rapport
+=====================================================================
+
+1. Taux de livraison global reel (TOSSIM) : 57.19 %, sur 11651 tentatives
+   d'emission de donnees (capteur->CH et CH->BS confondus) et 6663 lectures
+   effectivement remontees a la BS, sur une fenetre de 156 rounds (~ 6 min de
+   temps simule). C'est un ordre de grandeur plausible pour un canal radio
+   CC2420 simule avec une trace de bruit reelle (meyer-heavy.txt, bruit de
+   fond ~ -98 dBm avec pics d'interference ponctuels), sur un champ de
+   200x200 m avec BS deportee (~50 m hors champ) -- distances utiles jusqu'a
+   ~320 m en pire cas.
+
+2. Aucune mort de noeud observee sur les 150 rounds simules (E_INIT=0.5 J,
+   couts par message de l'ordre du micro-joule/nano-joule) : a l'echelle de
+   150 rounds, aucun capteur n'epuise son energie residuelle. Pour observer
+   des morts (et donc une degradation du taux de livraison / du nombre de
+   noeuds vivants dans le temps, comme dans les courbes python-sim), il
+   faudrait simuler significativement plus de rounds (des milliers), ce qui
+   est possible avec ce meme pipeline mais couteux en temps de simulation
+   (~1-2 minutes pour 150 rounds et ~5 millions d'evenements TOSSIM traites
+   -> de l'ordre de l'heure pour un nombre de rounds correspondant a
+   l'epuisement complet du reseau). Voir docker/README.md, section
+   "Limites et pistes".
+
+3. Deux corrections non triviales ont ete necessaires pour obtenir un
+   resultat physiquement credible (detaillees dans docker/README.md et
+   listees dans la reponse finale de l'agent de build) :
+     a. Recalibration du modele radio de run_tossim.py (gain path-loss vs
+        echelle dBm reelle de la trace de bruit TOSSIM) : sans cela, taux de
+        livraison ~ 0% (quasi aucun paquet de controle ou de donnees ne
+        franchissait le plancher de bruit).
+     b. Ajout d'un champ dstId dans data_msg_t (PSOClustering.h) et filtrage
+        correspondant dans DataReceive.receive() (PSOClusteringC.nc) : sans
+        cela, un message capteur->CH diffuse en AM_BROADCAST_ADDR etait
+        traite par TOUS les CH concurrents a portee radio (et non par le
+        seul CH destinataire), ce qui gonflait artificiellement le taux de
+        livraison (constate transitoirement bien au-dela de ce qui est
+        physiquement sensé apres la correction (a)).
